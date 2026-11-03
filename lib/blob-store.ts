@@ -6,7 +6,10 @@ const MAX_SERVER_SIDE_IMAGE_BYTES = 4 * 1024 * 1024;
 
 export type StoredHistoryRecord = {
   id: string;
-  data: Record<string, unknown>;
+  data: Record<string, unknown> & {
+    proofImages?: unknown;
+    customerSignatureImage?: unknown;
+  };
   createdAt: string;
   updatedAt: string;
 };
@@ -104,7 +107,33 @@ export function proofUrl(pathname: string) {
   return `/api/proof/${encodeURIComponent(pathname)}`;
 }
 
+export function signatureKeyFromUrl(value: unknown): string | null {
+  if (typeof value !== "string" || !value.startsWith("/api/signature/")) return null;
+  const encodedKey = value.slice("/api/signature/".length).split(/[?#]/, 1)[0];
+  try {
+    const key = decodeURIComponent(encodedKey);
+    if (!key.startsWith("signature_") || key.includes("/") || key.includes("\\")) return null;
+    return key;
+  } catch {
+    return null;
+  }
+}
+
+export function signatureUrl(pathname: string) {
+  return `/api/signature/${encodeURIComponent(pathname)}`;
+}
+
 export async function putProofImage(pathname: string, bytes: Buffer, contentType: string) {
+  assertBlobConfigured();
+  await put(pathname, bytes, {
+    access: "private",
+    addRandomSuffix: false,
+    allowOverwrite: false,
+    contentType,
+  });
+}
+
+async function putPrivateImage(pathname: string, bytes: Buffer, contentType: string) {
   assertBlobConfigured();
   await put(pathname, bytes, {
     access: "private",
@@ -161,4 +190,26 @@ export async function storeProofImages(id: string, images: unknown): Promise<str
     result.push(proofUrl(pathname));
   }
   return result;
+}
+
+export async function storeCustomerSignature(id: string, dataUrl: string): Promise<string> {
+  const match = /^data:image\/png;base64,([A-Za-z0-9+/]+={0,2})$/.exec(dataUrl);
+  if (!match) throw new Error("Format tanda tangan tidak didukung.");
+  const bytes = Buffer.from(match[1], "base64");
+  if (bytes.length === 0 || bytes.length > 250_000) {
+    throw new Error("Ukuran tanda tangan tidak valid.");
+  }
+  if (
+    bytes.length < 24 ||
+    bytes.subarray(0, 8).toString("hex") !== "89504e470d0a1a0a" ||
+    bytes.subarray(12, 16).toString("ascii") !== "IHDR" ||
+    bytes.readUInt32BE(16) < 100 || bytes.readUInt32BE(16) > 2000 ||
+    bytes.readUInt32BE(20) < 60 || bytes.readUInt32BE(20) > 600
+  ) {
+    throw new Error("Dimensi tanda tangan tidak valid.");
+  }
+  const owner = Buffer.from(id, "utf8").toString("base64url").slice(0, 24);
+  const pathname = `signature_${owner}_${randomUUID()}.png`;
+  await putPrivateImage(pathname, bytes, "image/png");
+  return signatureUrl(pathname);
 }

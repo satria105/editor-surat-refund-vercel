@@ -1,15 +1,18 @@
-import { hasSession } from "@/lib/auth";
+import { authError, getSessionRole, hasMasterAccount } from "@/lib/auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
-  const authenticated = await hasSession(request);
-  return Response.json(
-    { authenticated },
-    {
-      status: authenticated ? 200 : 401,
-      headers: { "cache-control": "no-store" },
-    },
-  );
+  const role = await getSessionRole(request);
+  if (!role) return authError(401, "Authentication required.");
+  try {
+    const masterExists = await hasMasterAccount();
+    return Response.json(
+      { authenticated: true, role, masterExists },
+      { headers: { "cache-control": "no-store" } },
+    );
+  } catch {
+    return authError(500, "Status akun belum tersedia.");
+  }
 }

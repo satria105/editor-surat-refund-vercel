@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, FormEvent, useState } from "react";
+import { ChangeEvent, FormEvent, PointerEvent as ReactPointerEvent, useRef, useState } from "react";
 
 type FormValues = {
   name: string;
@@ -70,6 +70,9 @@ async function compressPhoto(file: File) {
 export default function CustomerForm() {
   const [values, setValues] = useState(initialValues);
   const [photos, setPhotos] = useState<string[]>([]);
+  const [signatureImage, setSignatureImage] = useState("");
+  const signatureCanvas = useRef<HTMLCanvasElement | null>(null);
+  const isDrawingSignature = useRef(false);
   const [consent, setConsent] = useState(false);
   const [website, setWebsite] = useState("");
   const [busy, setBusy] = useState(false);
@@ -101,9 +104,67 @@ export default function CustomerForm() {
     }
   };
 
+  const signaturePoint = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+    const canvas = event.currentTarget;
+    const bounds = canvas.getBoundingClientRect();
+    return {
+      x: (event.clientX - bounds.left) * (canvas.width / bounds.width),
+      y: (event.clientY - bounds.top) * (canvas.height / bounds.height),
+    };
+  };
+
+  const startSignature = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+    event.preventDefault();
+    const canvas = event.currentTarget;
+    const context = canvas.getContext("2d");
+    if (!context) return;
+    canvas.setPointerCapture(event.pointerId);
+    const point = signaturePoint(event);
+    context.strokeStyle = "#183b56";
+    context.fillStyle = "#183b56";
+    context.lineWidth = 5;
+    context.lineCap = "round";
+    context.lineJoin = "round";
+    context.beginPath();
+    context.arc(point.x, point.y, 2.5, 0, Math.PI * 2);
+    context.fill();
+    context.beginPath();
+    context.moveTo(point.x, point.y);
+    isDrawingSignature.current = true;
+  };
+
+  const drawSignature = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+    if (!isDrawingSignature.current) return;
+    event.preventDefault();
+    const context = event.currentTarget.getContext("2d");
+    if (!context) return;
+    const point = signaturePoint(event);
+    context.lineTo(point.x, point.y);
+    context.stroke();
+  };
+
+  const finishSignature = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+    if (!isDrawingSignature.current) return;
+    isDrawingSignature.current = false;
+    const canvas = event.currentTarget;
+    if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+    setSignatureImage(canvas.toDataURL("image/png"));
+  };
+
+  const clearSignature = () => {
+    const canvas = signatureCanvas.current;
+    if (!canvas) return;
+    canvas.getContext("2d")?.clearRect(0, 0, canvas.width, canvas.height);
+    setSignatureImage("");
+  };
+
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (busy) return;
+    if (!signatureImage) {
+      setError("Bubuhkan tanda tangan digital sebelum mengirim.");
+      return;
+    }
     setBusy(true);
     setError("");
     try {
@@ -112,7 +173,7 @@ export default function CustomerForm() {
         method: "POST",
         headers: { "content-type": "application/json" },
         cache: "no-store",
-        body: JSON.stringify({ ...values, amount, proofImages: photos, consent, website }),
+        body: JSON.stringify({ ...values, amount, proofImages: photos, signatureImage, consent, website }),
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(typeof result.error === "string" ? result.error : "Pengajuan belum dapat dikirim.");
@@ -222,6 +283,34 @@ export default function CustomerForm() {
               ))}
             </div>
           ) : null}
+
+          <div className="portal-section-heading">
+            <span>04</span>
+            <div><strong>Tanda tangan pemohon</strong><small>Gambarkan tanda tangan dengan jari, stylus, atau tetikus.</small></div>
+          </div>
+          <div className="portal-signature-field">
+            <div className="portal-signature-heading">
+              <strong>Tanda tangan digital <b>*</b></strong>
+              <button disabled={!signatureImage} onClick={clearSignature} type="button">Hapus</button>
+            </div>
+            <canvas
+              aria-describedby="portal-signature-help"
+              aria-label="Area untuk menggambar tanda tangan digital"
+              aria-required="true"
+              className="portal-signature-canvas"
+              height={240}
+              onPointerCancel={finishSignature}
+              onPointerDown={startSignature}
+              onPointerMove={drawSignature}
+              onPointerUp={finishSignature}
+              ref={signatureCanvas}
+              role="img"
+              width={1000}
+            />
+            <small id="portal-signature-help">
+              Wajib diisi. Tanda tangan disimpan secara privat bersama pengajuan Anda.
+            </small>
+          </div>
 
           <label className="portal-consent">
             <input checked={consent} onChange={(event) => setConsent(event.target.checked)} required type="checkbox" />

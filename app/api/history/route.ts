@@ -5,6 +5,7 @@ import {
   listHistoryRecords,
   proofKeyFromUrl,
   readHistoryRecord,
+  signatureKeyFromUrl,
   storeProofImages,
   writeHistoryRecord,
 } from "@/lib/blob-store";
@@ -67,13 +68,14 @@ export async function POST(request: Request) {
       return json({ error: "Data surat tidak valid." }, { status: 400 });
     }
 
+    const submittedData = body.data as Record<string, unknown>;
     const id = typeof body.id === "string" && body.id.length > 0 ? body.id : randomUUID();
     const previous = await readHistoryRecord(id);
     const proofImages = await storeProofImages(id, body.proofImages ?? []);
     const now = new Date().toISOString();
     const record = {
       id,
-      data: { ...(body.data as Record<string, unknown>), proofImages },
+      data: { ...submittedData, proofImages },
       createdAt: previous?.createdAt ?? now,
       updatedAt: now,
     };
@@ -86,6 +88,11 @@ export async function POST(request: Request) {
       const obsoleteKeys = [...new Set(oldImages.map(proofKeyFromUrl).filter((key): key is string => !!key))]
         .filter((key) => !retainedKeys.has(key));
       await Promise.all(obsoleteKeys.map((key) => deletePrivateBlob(key)));
+    }
+    const previousSignatureKey = signatureKeyFromUrl(previous?.data.customerSignatureImage);
+    const retainedSignatureKey = signatureKeyFromUrl(submittedData.customerSignatureImage);
+    if (previousSignatureKey && previousSignatureKey !== retainedSignatureKey) {
+      await deletePrivateBlob(previousSignatureKey).catch(() => undefined);
     }
 
     return json({ id, proofImages });

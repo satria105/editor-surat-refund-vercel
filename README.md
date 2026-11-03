@@ -21,6 +21,8 @@ Hubungkan repository privat ini ke project Vercel dengan framework Next.js. Past
 
 Password diperiksa di server menggunakan hash scrypt; password asli tidak lagi dikirim dalam bundle JavaScript klien. Login menerbitkan cookie sesi `HttpOnly`, `Secure` pada production, dan `SameSite=Lax`. Token sesi acak hanya disimpan sebagai hash di private Blob dan kedaluwarsa setelah 24 jam. Riwayat, detail surat, foto, penghapusan, dan penerbitan token upload memerlukan sesi yang valid, termasuk ketika aplikasi dibuka melalui custom domain. SSO Vercel tetap dapat digunakan sebagai lapisan tambahan.
 
+Password lama tetap berlaku sebagai akun Admin. Setelah login sebagai Admin, buka menu **Akun & Audit** untuk membuat satu akun Master pertama kali; verifikasi password Admin dan gunakan password Master minimal 12 karakter. Setelah akun Master dibuat, hanya Master yang dapat mengganti password Master/Admin dan membaca audit. Audit menyimpan keberhasilan/kegagalan login, waktu, akun, IP, dan user-agent di private Blob. Password baru disimpan sebagai hash scrypt bersalt; saat password akun diganti, sesi lama akun tersebut dicabut.
+
 Portal publik hanya menerima data yang tervalidasi dan lampiran JPEG/PNG berukuran terbatas, menerapkan honeypot serta pembatasan percobaan per alamat pada runtime, dan tidak memiliki endpoint untuk membaca submission. Data intake dan foto disimpan di Blob privat; endpoint admin tetap memerlukan sesi password.
 
 Override `@vercel/cli-config@0.3.6` mempertahankan Blob/OIDC pada versi major yang digunakan sambil memperbarui dependency Zod yang ditandai audit. Tinjau override ini ketika memperbarui SDK Blob berikutnya.
