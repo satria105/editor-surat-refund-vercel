@@ -35,6 +35,9 @@ type HistoryItem = {
   letterDate: string;
   paymentDate: string;
   amount: string;
+  submissionSource?: string;
+  customerPhone?: string;
+  customerReference?: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -46,6 +49,7 @@ type StoredLetterData = LetterData & {
 type AppView = "dashboard" | "editor" | "analysis" | "status" | "all-data";
 
 const draftStorageKey = "refund-editor-draft";
+const customerPortalUrl = "https://refund.aiorbitlab.me/portal";
 
 const navigationItems: Array<{ id: AppView; label: string; description: string }> = [
   {
@@ -269,6 +273,15 @@ export default function Home() {
     const cleanDate = cleanFilePart(formatIndonesianDate(data.letterDate), "Tanpa Tanggal");
     return `Permohonan Refund - ${cleanName} - ${cleanDate}`;
   }, [data.letterDate, data.name]);
+
+  const copyPortalLink = async () => {
+    try {
+      await navigator.clipboard.writeText(customerPortalUrl);
+      setStatus("Link portal customer disalin. Bagikan kepada pelanggan.");
+    } catch {
+      setStatus(`Salin link ini untuk pelanggan: ${customerPortalUrl}`);
+    }
+  };
 
   const refundSentence = useMemo(
     () =>
@@ -931,6 +944,10 @@ export default function Home() {
               <span>{item.description}</span>
             </button>
           ))}
+          <button onClick={copyPortalLink} type="button">
+            <strong>Portal Pelanggan</strong>
+            <span>Salin tautan form pengajuan refund.</span>
+          </button>
           <p className="sidebar-section-title">Dokumen</p>
           <button onClick={() => setIsSidebarOpen(false)} type="button">
             <strong>Surat Refund</strong>
@@ -993,6 +1010,8 @@ export default function Home() {
               >
                 History
               </button>
+              <a className="history-action" href={customerPortalUrl} rel="noreferrer" target="_blank">Portal</a>
+              <button className="history-action" onClick={copyPortalLink} type="button">Salin Link</button>
               <button className="logout-action" onClick={lockEditor} type="button">
                 Keluar
               </button>
@@ -1002,6 +1021,8 @@ export default function Home() {
               <button className="history-action" onClick={() => openView("editor")} type="button">
                 Buka Editor
               </button>
+              <a className="history-action" href={customerPortalUrl} rel="noreferrer" target="_blank">Portal</a>
+              <button className="history-action" onClick={copyPortalLink} type="button">Salin Link</button>
               <button className="logout-action" onClick={lockEditor} type="button">
                 Keluar
               </button>
@@ -1041,6 +1062,17 @@ export default function Home() {
                 <span>Editor</span>
                 <strong>Siap</strong>
               </div>
+            </div>
+          ) : null}
+
+          {activeView === "dashboard" ? (
+            <div className="portal-share-card">
+              <div>
+                <span>Link form untuk pelanggan</span>
+                <a href={customerPortalUrl} rel="noreferrer" target="_blank">refund.aiorbitlab.me/portal</a>
+                <p>Pelanggan dapat mengisi pengajuan sendiri. Data baru masuk ke history privat untuk ditinjau.</p>
+              </div>
+              <button className="history-action" onClick={copyPortalLink} type="button">Salin Link</button>
             </div>
           ) : null}
 
@@ -1084,6 +1116,11 @@ export default function Home() {
                         <span>
                           {formatIndonesianDate(item.letterDate)} - {item.amount || "Tanpa nominal"}
                         </span>
+                        {item.submissionSource ? (
+                          <small className="history-source">
+                            {item.submissionSource}{item.customerPhone ? ` · WhatsApp ${item.customerPhone}` : ""}{item.customerReference ? ` · ${item.customerReference}` : ""}
+                          </small>
+                        ) : null}
                       </button>
                       <button
                         className="history-delete"

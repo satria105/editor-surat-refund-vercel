@@ -46,6 +46,43 @@ test("serves the main page from the Next.js production build", async (t) => {
   assert.match(html, /<title>Editor Surat Refund<\/title>/i);
 
   const base = `http://127.0.0.1:${port}`;
+  await t.test("customer portal renders a shareable form without admin access", async () => {
+    const portal = await fetch(base + "/portal");
+    assert.equal(portal.status, 200);
+    const portalHtml = await portal.text();
+    assert.match(portalHtml, /Form Pengajuan Refund/);
+    assert.match(portalHtml, /Nomor WhatsApp/);
+    assert.match(portalHtml, /name=\"robots\"/);
+  });
+  await t.test("customer intake does not expose a list endpoint", async () => {
+    const result = await fetch(base + "/api/customer-intake");
+    assert.equal(result.status, 405);
+  });
+  await t.test("customer intake rejects an unconsented request", async () => {
+    const result = await fetch(base + "/api/customer-intake", {
+      method: "POST",
+      headers: { "content-type": "application/json", origin: base },
+      body: JSON.stringify({ name: "Test" }),
+    });
+    assert.equal(result.status, 400);
+  });
+  await t.test("customer intake rejects cross-origin submissions", async () => {
+    const result = await fetch(base + "/api/customer-intake", {
+      method: "POST",
+      headers: { "content-type": "application/json", origin: "https://untrusted.example" },
+      body: JSON.stringify({}),
+    });
+    assert.equal(result.status, 403);
+  });
+  await t.test("customer intake honeypot discards automated submissions", async () => {
+    const result = await fetch(base + "/api/customer-intake", {
+      method: "POST",
+      headers: { "content-type": "application/json", origin: base },
+      body: JSON.stringify({ website: "automated-entry" }),
+    });
+    assert.equal(result.status, 201);
+    assert.equal((await result.json()).ok, true);
+  });
   for (const [path, method] of [
     ["/api/history", "GET"],
     ["/api/history", "POST"],

@@ -34,6 +34,9 @@ export async function GET(request: Request) {
           letterDate: typeof data.letterDate === "string" ? data.letterDate : "",
           paymentDate: typeof data.paymentDate === "string" ? data.paymentDate : "",
           amount: typeof data.amount === "string" ? data.amount : "",
+          submissionSource: typeof data.submissionSource === "string" ? data.submissionSource : "",
+          customerPhone: typeof data.customerPhone === "string" ? data.customerPhone : "",
+          customerReference: typeof data.customerReference === "string" ? data.customerReference : "",
           createdAt: record.createdAt,
           updatedAt: record.updatedAt,
         };
