@@ -263,6 +263,8 @@ export default function Home() {
         setIsUnlocked(true);
         setUserRole(result.role === "master" ? "master" : "admin");
         setMasterExists(Boolean(result.masterExists));
+        setActiveView(result.role === "master" ? "security" : "editor");
+        if (result.role === "master") setStatus("Pengaturan akun dan audit login dibuka.");
       })
       .catch(() => {
         setIsUnlocked(false);
@@ -539,6 +541,8 @@ export default function Home() {
       const result = await response.json();
       setUserRole(result.role === "master" ? "master" : "admin");
       setMasterExists(Boolean(result.masterExists));
+      setActiveView(result.role === "master" ? "security" : "editor");
+      if (result.role === "master") setStatus("Pengaturan akun dan audit login dibuka.");
       setIsUnlocked(true);
       setPassword("");
     } catch {
@@ -977,6 +981,18 @@ export default function Home() {
 
   return (
     <main className="app-shell min-h-screen text-[#171a1f]">
+      <button
+        aria-controls="app-navigation"
+        aria-expanded={isSidebarOpen}
+        aria-label={isSidebarOpen ? "Tutup menu utama" : "Buka menu utama"}
+        className="sidebar-toggle"
+        onClick={() => setIsSidebarOpen((open) => !open)}
+        type="button"
+      >
+        <span />
+        <span />
+        <span />
+      </button>
       {isSidebarOpen ? (
         <button
           aria-label="Tutup menu"
@@ -986,7 +1002,10 @@ export default function Home() {
         />
       ) : null}
 
-      <aside className={`app-sidebar ${isSidebarOpen ? "is-open" : ""}`}>
+      <aside
+        className={`app-sidebar ${isSidebarOpen ? "is-open" : ""}`}
+        id="app-navigation"
+      >
         <div className="sidebar-top">
           <div className="sidebar-logo-card">
             {/* eslint-disable-next-line @next/next/no-img-element */}
