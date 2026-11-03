@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { isSameOrigin } from "@/lib/auth";
-import { deletePrivateBlob, proofKeyFromUrl, storeProofImages, writeHistoryRecord } from "@/lib/blob-store";
+import { deletePrivateBlob, proofKeyFromUrl, signatureKeyFromUrl, storeCustomerSignature, storeProofImages, writeHistoryRecord } from "@/lib/blob-store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -120,6 +120,20 @@ function validProofImages(value: unknown): value is string[] {
   });
 }
 
+function validSignatureImage(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  const match = /^data:image\/png;base64,([A-Za-z0-9+/]+={0,2})$/.exec(value);
+  if (!match) return false;
+  const bytes = Buffer.from(match[1], "base64");
+  return (
+    bytes.length >= 24 && bytes.length <= 250_000 &&
+    bytes.subarray(0, 8).toString("hex") === "89504e470d0a1a0a" &&
+    bytes.subarray(12, 16).toString("ascii") === "IHDR" &&
+    bytes.readUInt32BE(16) >= 100 && bytes.readUInt32BE(16) <= 2000 &&
+    bytes.readUInt32BE(20) >= 60 && bytes.readUInt32BE(20) <= 600
+  );
+}
+
 export async function POST(request: Request) {
   if (!isSameOrigin(request)) return json({ error: "Permintaan tidak diizinkan." }, 403);
   if (!allowSubmission(clientKey(request))) return json({ error: "Terlalu banyak pengiriman. Coba lagi nanti." }, 429);
@@ -141,6 +155,8 @@ export async function POST(request: Request) {
   const website = text(input.website, 200);
   if (website) return json({ ok: true, reference: "RF-TERKIRIM" }, 201);
   if (input.consent !== true) return json({ error: "Persetujuan pemrosesan data wajib dicentang." }, 400);
+  const signatureImage = input.signatureImage;
+  if (!validSignatureImage(signatureImage)) return json({ error: "Bubuhkan tanda tangan digital sebelum mengirim." }, 400);
 
   const name = text(input.name, 100);
   const ktpInput = text(input.ktp, 40).replace(/\D/g, "");
@@ -174,7 +190,9 @@ export async function POST(request: Request) {
   const id = randomUUID();
   const reference = `RF-${id.slice(0, 8).toUpperCase()}`;
   const storedProofs: string[] = [];
+  let storedSignatureUrl: string | null = null;
   try {
+    storedSignatureUrl = await storeCustomerSignature(id, signatureImage);
     for (const image of proofImages) storedProofs.push(...(await storeProofImages(id, [image])));
     const now = new Date().toISOString();
     await writeHistoryRecord({
@@ -196,6 +214,7 @@ export async function POST(request: Request) {
         reason,
         closing: "Demikian Surat permohonan ini kami buat dengan sebenar-benarnya agar dapat dipergunakan sebagai mana mestinya.",
         signerName: name,
+        customerSignatureImage: storedSignatureUrl,
         proofImages: storedProofs,
         submissionSource: "Portal pelanggan",
         customerPhone,
@@ -207,6 +226,8 @@ export async function POST(request: Request) {
     return json({ ok: true, reference }, 201);
   } catch {
     const keys = storedProofs.map(proofKeyFromUrl).filter((key): key is string => !!key);
+    const signatureKey = signatureKeyFromUrl(storedSignatureUrl);
+    if (signatureKey) keys.push(signatureKey);
     await Promise.allSettled(keys.map((key) => deletePrivateBlob(key)));
     return json({ error: "Pengajuan belum dapat disimpan. Coba lagi beberapa saat." }, 500);
   }

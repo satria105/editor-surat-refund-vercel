@@ -4,6 +4,7 @@ import {
   deletePrivateBlob,
   proofKeyFromUrl,
   readHistoryRecord,
+  signatureKeyFromUrl,
 } from "@/lib/blob-store";
 
 export const runtime = "nodejs";
@@ -46,6 +47,8 @@ export async function DELETE(
       const keys = [...new Set(images.map(proofKeyFromUrl).filter((key): key is string => !!key))];
       await Promise.all(keys.map((key) => deletePrivateBlob(key)));
     }
+    const signatureKey = signatureKeyFromUrl(record?.data.customerSignatureImage);
+    if (signatureKey) await deletePrivateBlob(signatureKey);
     await deleteHistoryRecord(id);
     return json({ ok: true });
   } catch {

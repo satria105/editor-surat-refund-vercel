@@ -66,6 +66,15 @@ test("serves the main page from the Next.js production build", async (t) => {
     });
     assert.equal(result.status, 400);
   });
+  await t.test("customer intake requires a digital signature", async () => {
+    const result = await fetch(base + "/api/customer-intake", {
+      method: "POST",
+      headers: { "content-type": "application/json", origin: base },
+      body: JSON.stringify({ consent: true }),
+    });
+    assert.equal(result.status, 400);
+    assert.match((await result.json()).error, /tanda tangan digital/i);
+  });
   await t.test("customer intake rejects cross-origin submissions", async () => {
     const result = await fetch(base + "/api/customer-intake", {
       method: "POST",
@@ -89,7 +98,11 @@ test("serves the main page from the Next.js production build", async (t) => {
     ["/api/history/nonexistent", "GET"],
     ["/api/history/nonexistent", "DELETE"],
     ["/api/proof/proof_nonexistent.png", "GET"],
+    ["/api/signature/signature_nonexistent.png", "GET"],
     ["/api/auth/session", "GET"],
+    ["/api/auth/audit", "GET"],
+    ["/api/auth/password", "POST"],
+    ["/api/auth/accounts/master", "POST"],
   ]) {
     await t.test(`${method} ${path} denies unauthenticated access`, async () => {
       const result = await fetch(base + path, { method });

@@ -10,6 +10,7 @@ import {
 } from "docx";
 import { jsPDF } from "jspdf";
 import { upload } from "@vercel/blob/client";
+import AccountPanel from "./account-panel";
 import { ChangeEvent, FormEvent, MouseEvent, useEffect, useMemo, useState } from "react";
 
 type LetterData = {
@@ -27,6 +28,7 @@ type LetterData = {
   reason: string;
   closing: string;
   signerName: string;
+  customerSignatureImage?: string;
 };
 
 type HistoryItem = {
@@ -46,7 +48,8 @@ type StoredLetterData = LetterData & {
   proofImages?: string[];
 };
 
-type AppView = "dashboard" | "editor" | "analysis" | "status" | "all-data";
+type AccountRole = "admin" | "master";
+type AppView = "dashboard" | "editor" | "analysis" | "status" | "all-data" | "security";
 
 const draftStorageKey = "refund-editor-draft";
 const customerPortalUrl = "https://refund.aiorbitlab.me/portal";
@@ -76,6 +79,11 @@ const navigationItems: Array<{ id: AppView; label: string; description: string }
     id: "all-data",
     label: "Seluruh Data",
     description: "Cari dan buka semua history.",
+  },
+  {
+    id: "security",
+    label: "Akun & Audit",
+    description: "Kelola akun Master dan riwayat login.",
   },
 ];
 
@@ -227,6 +235,9 @@ export default function Home() {
   const [status, setStatus] = useState("Siap diedit dan diunduh.");
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [password, setPassword] = useState("");
+  const [loginRole, setLoginRole] = useState<AccountRole>("admin");
+  const [userRole, setUserRole] = useState<AccountRole | null>(null);
+  const [masterExists, setMasterExists] = useState(false);
   const [passwordError, setPasswordError] = useState("");
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
@@ -242,8 +253,21 @@ export default function Home() {
     window.localStorage.removeItem("refund-editor-access");
     window.sessionStorage.removeItem("refund-editor-access");
     fetch("/api/auth/session", { cache: "no-store", credentials: "same-origin" })
-      .then((response) => setIsUnlocked(response.ok))
-      .catch(() => setIsUnlocked(false));
+      .then(async (response) => {
+        if (!response.ok) {
+          setIsUnlocked(false);
+          setUserRole(null);
+          return;
+        }
+        const result = await response.json();
+        setIsUnlocked(true);
+        setUserRole(result.role === "master" ? "master" : "admin");
+        setMasterExists(Boolean(result.masterExists));
+      })
+      .catch(() => {
+        setIsUnlocked(false);
+        setUserRole(null);
+      });
   }, []);
 
   useEffect(() => {
@@ -334,6 +358,7 @@ export default function Home() {
   const sessionExpired = (response: Response) => {
     if (response.status !== 401) return false;
     setIsUnlocked(false);
+    setUserRole(null);
     setPasswordError("Sesi telah berakhir. Masukkan password lagi.");
     return true;
   };
@@ -486,6 +511,11 @@ export default function Home() {
       return;
     }
 
+    if (view === "security") {
+      setStatus("Pengaturan akun dan audit login dibuka.");
+      return;
+    }
+
     setStatus("Dashboard refund dibuka.");
   };
 
@@ -499,13 +529,16 @@ export default function Home() {
         method: "POST",
         headers: { "content-type": "application/json" },
         credentials: "same-origin",
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ account: loginRole, password }),
       });
       if (!response.ok) {
         const result = await response.json().catch(() => ({}));
         setPasswordError(typeof result.error === "string" ? result.error : "Gagal masuk. Coba lagi.");
         return;
       }
+      const result = await response.json();
+      setUserRole(result.role === "master" ? "master" : "admin");
+      setMasterExists(Boolean(result.masterExists));
       setIsUnlocked(true);
       setPassword("");
     } catch {
@@ -520,6 +553,7 @@ export default function Home() {
       await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" });
     } finally {
       setIsUnlocked(false);
+      setUserRole(null);
       setPassword("");
       setPasswordError("");
     }
@@ -671,7 +705,24 @@ export default function Home() {
 
     pdf.text("Hormat Kami", signatureCenterX, y, { align: "center" });
 
-    y += 26;
+    if (data.customerSignatureImage) {
+      const signatureData = data.customerSignatureImage.startsWith("data:")
+        ? data.customerSignatureImage
+        : await publicImageToDataUrl(data.customerSignatureImage);
+      const signatureSize = await getImageSize(signatureData);
+      const signaturePdfSize = fitImage(signatureSize, 55, 18);
+      pdf.addImage(
+        signatureData,
+        "PNG",
+        signatureCenterX - signaturePdfSize.width / 2,
+        y + 3,
+        signaturePdfSize.width,
+        signaturePdfSize.height,
+      );
+      y += signaturePdfSize.height + 7;
+    } else {
+      y += 26;
+    }
     pdf.setFont("times", "bold");
     pdf.setFontSize(13);
     pdf.text(signerText, signatureCenterX, y, { align: "center" });
@@ -728,6 +779,27 @@ export default function Home() {
         ],
       });
     const proofParagraphs: Paragraph[] = [];
+    const signatureParagraphs: Paragraph[] = [];
+    if (data.customerSignatureImage) {
+      const signatureData = data.customerSignatureImage.startsWith("data:")
+        ? data.customerSignatureImage
+        : await publicImageToDataUrl(data.customerSignatureImage);
+      const signatureBuffer = await dataUrlToArrayBuffer(signatureData);
+      const signatureSize = await getImageSize(signatureData);
+      const signatureDocSize = fitImage(signatureSize, 180, 65);
+      signatureParagraphs.push(
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          children: [
+            new ImageRun({
+              type: "png",
+              data: signatureBuffer,
+              transformation: signatureDocSize,
+            }),
+          ],
+        }),
+      );
+    }
 
     for (const proofImage of proofImages) {
       const proofData =
@@ -837,6 +909,7 @@ export default function Home() {
               children: [new TextRun({ text: "Hormat Kami", ...normal })],
             }),
             new Paragraph({ text: "" }),
+            ...signatureParagraphs,
             new Paragraph({ text: "" }),
             new Paragraph({
               alignment: AlignmentType.CENTER,
@@ -869,6 +942,14 @@ export default function Home() {
             Editor surat refund dikunci supaya form dan dokumen tidak langsung
             terbuka untuk semua orang.
           </p>
+
+          <label className="field">
+            <span>Jenis akun</span>
+            <select onChange={(event) => setLoginRole(event.target.value as AccountRole)} value={loginRole}>
+              <option value="admin">Admin</option>
+              <option value="master">Master</option>
+            </select>
+          </label>
 
           <label className="field">
             <span>Password</span>
@@ -933,7 +1014,7 @@ export default function Home() {
 
         <nav className="sidebar-nav" aria-label="Menu utama">
           <p className="sidebar-section-title">Utama</p>
-          {navigationItems.map((item) => (
+          {navigationItems.filter((item) => item.id !== "security" || userRole === "master" || !masterExists).map((item) => (
             <button
               className={activeView === item.id ? "is-active" : ""}
               key={item.id}
@@ -1142,6 +1223,13 @@ export default function Home() {
 
         {activeView !== "editor" ? (
           <section className="dashboard-shell" aria-label="Ringkasan menu">
+            {activeView === "security" && userRole ? (
+              <AccountPanel
+                masterExists={masterExists}
+                onMasterCreated={() => setMasterExists(true)}
+                role={userRole}
+              />
+            ) : null}
             <div className="dashboard-card">
               <span>{activeNavigation?.label}</span>
               <h2>
@@ -1339,6 +1427,17 @@ export default function Home() {
 
             <div className="signature-block">
               <p>Hormat Kami</p>
+              {data.customerSignatureImage ? (
+                <div className="customer-signature-preview">
+                  <span>Tanda tangan digital dari portal</span>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    alt="Tanda tangan digital pemohon"
+                    className="customer-signature-image"
+                    src={data.customerSignatureImage}
+                  />
+                </div>
+              ) : null}
               <div className="auto-signer-value" aria-label="Nama tanda tangan otomatis">
                 {data.name || "Nama otomatis dari atas"}
               </div>
