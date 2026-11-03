@@ -263,7 +263,7 @@ export default function Home() {
         setIsUnlocked(true);
         setUserRole(result.role === "master" ? "master" : "admin");
         setMasterExists(Boolean(result.masterExists));
-        setActiveView(result.role === "master" ? "security" : "editor");
+        setActiveView(result.role === "master" || !result.masterExists ? "security" : "editor");
         if (result.role === "master") setStatus("Pengaturan akun dan audit login dibuka.");
       })
       .catch(() => {
@@ -541,7 +541,8 @@ export default function Home() {
       const result = await response.json();
       setUserRole(result.role === "master" ? "master" : "admin");
       setMasterExists(Boolean(result.masterExists));
-      setActiveView(result.role === "master" ? "security" : "editor");
+      setActiveView(result.role === "master" || !result.masterExists ? "security" : "editor");
+      setIsSidebarOpen(false);
       if (result.role === "master") setStatus("Pengaturan akun dan audit login dibuka.");
       setIsUnlocked(true);
       setPassword("");
@@ -558,6 +559,7 @@ export default function Home() {
     } finally {
       setIsUnlocked(false);
       setUserRole(null);
+      setIsSidebarOpen(false);
       setPassword("");
       setPasswordError("");
     }
@@ -980,20 +982,24 @@ export default function Home() {
   }
 
   return (
-    <main className="app-shell min-h-screen text-[#171a1f]">
-      <button
-        aria-controls="app-navigation"
-        aria-expanded={isSidebarOpen}
-        aria-label={isSidebarOpen ? "Tutup menu utama" : "Buka menu utama"}
-        className="sidebar-toggle"
-        onClick={() => setIsSidebarOpen((open) => !open)}
-        type="button"
-      >
-        <span />
-        <span />
-        <span />
-      </button>
-      {isSidebarOpen ? (
+    <main
+      className={`app-shell min-h-screen text-[#171a1f] ${userRole === "master" ? "with-sidebar" : "without-sidebar"}`}
+    >
+      {userRole === "master" ? (
+        <button
+          aria-controls="app-navigation"
+          aria-expanded={isSidebarOpen}
+          aria-label={isSidebarOpen ? "Tutup menu utama" : "Buka menu utama"}
+          className="sidebar-toggle"
+          onClick={() => setIsSidebarOpen((open) => !open)}
+          type="button"
+        >
+          <span />
+          <span />
+          <span />
+        </button>
+      ) : null}
+      {userRole === "master" && isSidebarOpen ? (
         <button
           aria-label="Tutup menu"
           className="sidebar-backdrop"
@@ -1002,64 +1008,66 @@ export default function Home() {
         />
       ) : null}
 
-      <aside
-        className={`app-sidebar ${isSidebarOpen ? "is-open" : ""}`}
-        id="app-navigation"
-      >
-        <div className="sidebar-top">
-          <div className="sidebar-logo-card">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/aiorbitlab-logo.webp" alt="Aiorbitlab" />
-          </div>
-          <button
-            aria-label="Tutup sidebar"
-            className="sidebar-close"
-            onClick={() => setIsSidebarOpen(false)}
-            type="button"
-          >
-            ×
-          </button>
-        </div>
-
-        <label className="sidebar-search">
-          <span>Cari</span>
-          <input placeholder="Cari menu..." type="search" />
-        </label>
-
-        <div className="sidebar-title-block">
-          <p>Refund menu</p>
-          <h2>Dashboard</h2>
-        </div>
-
-        <nav className="sidebar-nav" aria-label="Menu utama">
-          <p className="sidebar-section-title">Utama</p>
-          {navigationItems.filter((item) => item.id !== "security" || userRole === "master" || !masterExists).map((item) => (
+      {userRole === "master" ? (
+        <aside
+          className={`app-sidebar ${isSidebarOpen ? "is-open" : ""}`}
+          id="app-navigation"
+        >
+          <div className="sidebar-top">
+            <div className="sidebar-logo-card">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/aiorbitlab-logo.webp" alt="Aiorbitlab" />
+            </div>
             <button
-              className={activeView === item.id ? "is-active" : ""}
-              key={item.id}
-              onClick={() => openView(item.id)}
+              aria-label="Tutup sidebar"
+              className="sidebar-close"
+              onClick={() => setIsSidebarOpen(false)}
               type="button"
             >
-              <strong>{item.label}</strong>
-              <span>{item.description}</span>
+              ×
             </button>
-          ))}
-          <button onClick={copyPortalLink} type="button">
-            <strong>Portal Pelanggan</strong>
-            <span>Salin tautan form pengajuan refund.</span>
-          </button>
-          <p className="sidebar-section-title">Dokumen</p>
-          <button onClick={() => setIsSidebarOpen(false)} type="button">
-            <strong>Surat Refund</strong>
-            <span>Preview dan download dokumen.</span>
-          </button>
-        </nav>
+          </div>
 
-        <div className="sidebar-footer">
-          <span>Aiorbitlab System</span>
-          <strong>v1.0</strong>
-        </div>
-      </aside>
+          <label className="sidebar-search">
+            <span>Cari</span>
+            <input placeholder="Cari menu..." type="search" />
+          </label>
+
+          <div className="sidebar-title-block">
+            <p>Refund menu</p>
+            <h2>Dashboard</h2>
+          </div>
+
+          <nav className="sidebar-nav" aria-label="Menu utama">
+            <p className="sidebar-section-title">Utama</p>
+            {navigationItems.map((item) => (
+              <button
+                className={activeView === item.id ? "is-active" : ""}
+                key={item.id}
+                onClick={() => openView(item.id)}
+                type="button"
+              >
+                <strong>{item.label}</strong>
+                <span>{item.description}</span>
+              </button>
+            ))}
+            <button onClick={copyPortalLink} type="button">
+              <strong>Portal Pelanggan</strong>
+              <span>Salin tautan form pengajuan refund.</span>
+            </button>
+            <p className="sidebar-section-title">Dokumen</p>
+            <button onClick={() => setIsSidebarOpen(false)} type="button">
+              <strong>Surat Refund</strong>
+              <span>Preview dan download dokumen.</span>
+            </button>
+          </nav>
+
+          <div className="sidebar-footer">
+            <span>Aiorbitlab System</span>
+            <strong>v1.0</strong>
+          </div>
+        </aside>
+      ) : null}
 
       <div className="workspace-layout">
         <section className="document-toolbar" aria-label="Aksi dokumen">
@@ -1076,7 +1084,9 @@ export default function Home() {
               <p className="intro">
                 {activeView === "editor"
                   ? "Klik langsung bagian surat yang mau diubah, lalu download sebagai PDF atau Word."
-                  : "Pilih menu di sidebar untuk melihat ringkasan, status, dan data refund."}
+                  : userRole === "master"
+                    ? "Pilih menu di sidebar untuk melihat ringkasan, status, dan data refund."
+                    : "Selesaikan setup awal akun Master atau buka Editor menggunakan tombol di atas."}
               </p>
             </div>
           </div>
@@ -1112,6 +1122,11 @@ export default function Home() {
               </button>
               <a className="history-action" href={customerPortalUrl} rel="noreferrer" target="_blank">Portal</a>
               <button className="history-action" onClick={copyPortalLink} type="button">Salin Link</button>
+              {userRole === "admin" && !masterExists ? (
+                <button className="history-action" onClick={() => openView("security")} type="button">
+                  Buat Akun Master
+                </button>
+              ) : null}
               <button className="logout-action" onClick={lockEditor} type="button">
                 Keluar
               </button>
@@ -1245,7 +1260,11 @@ export default function Home() {
             {activeView === "security" && userRole ? (
               <AccountPanel
                 masterExists={masterExists}
-                onMasterCreated={() => setMasterExists(true)}
+                onMasterCreated={() => {
+                  setMasterExists(true);
+                  setActiveView("editor");
+                  setStatus("Akun Master berhasil dibuat. Masuk kembali sebagai Master untuk mengelola akun dan audit.");
+                }}
                 role={userRole}
               />
             ) : null}
@@ -1258,12 +1277,16 @@ export default function Home() {
                     ? "Analisis dari history"
                     : activeView === "status"
                       ? "Status data refund"
-                      : "Seluruh data refund"}
+                      : activeView === "security"
+                        ? "Pengaturan akun"
+                        : "Seluruh data refund"}
               </h2>
               <p>
                 {activeView === "all-data"
                   ? "Gunakan panel history di atas untuk cari nama, buka data, lalu revisi di Editor Dokumen."
-                  : "Preview surat disembunyikan di menu ini supaya halaman tidak penuh. Buka Editor Dokumen kalau mau mengedit surat."}
+                  : activeView === "security"
+                    ? "Pengaturan akun tersedia bagi Master; Admin hanya dapat membuat akun Master pertama kali."
+                    : "Preview surat disembunyikan di menu ini supaya halaman tidak penuh. Buka Editor Dokumen kalau mau mengedit surat."}
               </p>
             </div>
           </section>

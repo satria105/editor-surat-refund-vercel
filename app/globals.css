@@ -315,6 +315,10 @@ textarea {
   width: 100%;
 }
 
+.app-shell.without-sidebar .workspace-layout {
+  padding-left: clamp(12px, 1.6vw, 28px);
+}
+
 .control-panel {
   align-self: start;
   border-radius: 18px;
@@ -1331,6 +1335,10 @@ h1 {
   .workspace-layout {
     gap: 10px;
     padding: 62px 8px 8px;
+  }
+
+  .app-shell.without-sidebar .workspace-layout {
+    padding-top: 12px;
   }
 
   .sidebar-toggle {

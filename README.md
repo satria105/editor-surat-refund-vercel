@@ -4,7 +4,7 @@ Aplikasi Next.js untuk membuat surat refund, menerima pengajuan pelanggan melalu
 
 ## Portal pelanggan
 
-Form publik tersedia di `https://refund.aiorbitlab.me/portal`. Admin dapat membuka atau menyalin link dari toolbar, menu sidebar, dan dashboard. Pelanggan mengisi data pemohon, WhatsApp, rekening, tanggal/nominal, alasan, dan maksimal dua foto bukti. Form meminta persetujuan pemrosesan; pengajuan disimpan sebagai record baru di history privat, lalu dapat ditinjau dan diedit melalui editor admin. Nomor WhatsApp, sumber submission, dan nomor referensi terlihat pada daftar history internal. Endpoint intake hanya menerima POST; tidak menyediakan akses baca daftar atau detail.
+Form publik tersedia di `https://refund.aiorbitlab.me/portal`. Admin dapat membuka atau menyalin link dari toolbar; Master juga dapat membukanya dari sidebar. Pelanggan mengisi data pemohon, WhatsApp, rekening, tanggal/nominal, alasan, dan maksimal dua foto bukti. Form meminta persetujuan pemrosesan; pengajuan disimpan sebagai record baru di history privat, lalu dapat ditinjau dan diedit melalui editor admin. Nomor WhatsApp, sumber submission, dan nomor referensi terlihat pada daftar history internal. Endpoint intake hanya menerima POST; tidak menyediakan akses baca daftar atau detail.
 
 ## Menjalankan lokal
 
@@ -21,7 +21,7 @@ Hubungkan repository privat ini ke project Vercel dengan framework Next.js. Past
 
 Password diperiksa di server menggunakan hash scrypt; password asli tidak lagi dikirim dalam bundle JavaScript klien. Login menerbitkan cookie sesi `HttpOnly`, `Secure` pada production, dan `SameSite=Lax`. Token sesi acak hanya disimpan sebagai hash di private Blob dan kedaluwarsa setelah 24 jam. Riwayat, detail surat, foto, penghapusan, dan penerbitan token upload memerlukan sesi yang valid, termasuk ketika aplikasi dibuka melalui custom domain. SSO Vercel tetap dapat digunakan sebagai lapisan tambahan.
 
-Password lama tetap berlaku sebagai akun Admin. Setelah login sebagai Admin, buka menu **Akun & Audit** untuk membuat satu akun Master pertama kali; verifikasi password Admin dan gunakan password Master minimal 12 karakter. Setelah akun Master dibuat, hanya Master yang dapat mengganti password Master/Admin dan membaca audit. Audit menyimpan keberhasilan/kegagalan login, waktu, akun, IP, dan user-agent di private Blob. Password baru disimpan sebagai hash scrypt bersalt; saat password akun diganti, sesi lama akun tersebut dicabut.
+Password lama tetap berlaku sebagai akun Admin. Jika akun Master belum dibuat, login Admin langsung menampilkan setup awal tanpa sidebar; verifikasi password Admin dan gunakan password Master minimal 12 karakter. Setelah akun Master dibuat, Admin tetap tanpa sidebar, sedangkan sidebar Master menyediakan menu **Akun & Audit**. Hanya Master yang dapat mengganti password Master/Admin dan membaca audit. Audit menyimpan keberhasilan/kegagalan login, waktu, akun, IP, dan user-agent di private Blob. Password baru disimpan sebagai hash scrypt bersalt; saat password akun diganti, sesi lama akun tersebut dicabut.
 
 Portal publik hanya menerima data yang tervalidasi dan lampiran JPEG/PNG berukuran terbatas, menerapkan honeypot serta pembatasan percobaan per alamat pada runtime, dan tidak memiliki endpoint untuk membaca submission. Data intake dan foto disimpan di Blob privat; endpoint admin tetap memerlukan sesi password.
 
