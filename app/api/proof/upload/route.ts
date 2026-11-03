@@ -1,3 +1,4 @@
+import { requireAuth } from "@/lib/auth";
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 
 export const runtime = "nodejs";
@@ -10,6 +11,8 @@ export async function POST(request: Request) {
       body,
       request,
       onBeforeGenerateToken: async (pathname) => {
+        const denied = await requireAuth(request);
+        if (denied) throw new Error("Sesi diperlukan untuk upload foto.");
         if (!pathname.startsWith("proof_") || pathname.includes("/") || pathname.includes("\\")) {
           throw new Error("Nama file foto tidak valid.");
         }

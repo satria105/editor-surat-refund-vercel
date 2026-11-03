@@ -45,8 +45,6 @@ type StoredLetterData = LetterData & {
 
 type AppView = "dashboard" | "editor" | "analysis" | "status" | "all-data";
 
-const editorPassword = "marketing01";
-const accessStorageKey = "refund-editor-access";
 const draftStorageKey = "refund-editor-draft";
 
 const navigationItems: Array<{ id: AppView; label: string; description: string }> = [
@@ -226,6 +224,7 @@ export default function Home() {
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [password, setPassword] = useState("");
   const [passwordError, setPasswordError] = useState("");
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
   const [historyQuery, setHistoryQuery] = useState("");
   const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null);
@@ -236,16 +235,11 @@ export default function Home() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   useEffect(() => {
-    const unlocked =
-      window.localStorage.getItem(accessStorageKey) === "unlocked" ||
-      window.sessionStorage.getItem(accessStorageKey) === "unlocked";
-
-    if (unlocked) {
-      window.localStorage.setItem(accessStorageKey, "unlocked");
-      window.sessionStorage.removeItem(accessStorageKey);
-    }
-
-    setIsUnlocked(unlocked);
+    window.localStorage.removeItem("refund-editor-access");
+    window.sessionStorage.removeItem("refund-editor-access");
+    fetch("/api/auth/session", { cache: "no-store", credentials: "same-origin" })
+      .then((response) => setIsUnlocked(response.ok))
+      .catch(() => setIsUnlocked(false));
   }, []);
 
   useEffect(() => {
@@ -324,11 +318,19 @@ export default function Home() {
     }));
   };
 
+  const sessionExpired = (response: Response) => {
+    if (response.status !== 401) return false;
+    setIsUnlocked(false);
+    setPasswordError("Sesi telah berakhir. Masukkan password lagi.");
+    return true;
+  };
+
   const loadHistoryItems = async (query = historyQuery) => {
     try {
       const response = await fetch(`/api/history?q=${encodeURIComponent(query)}`, {
         cache: "no-store",
       });
+      if (sessionExpired(response)) return;
       if (!response.ok) throw new Error("Gagal membaca history.");
       const result = (await response.json()) as { items: HistoryItem[] };
       setHistoryItems(result.items);
@@ -373,6 +375,7 @@ export default function Home() {
           proofImages: persistedProofImages,
         }),
       });
+      if (sessionExpired(response)) return null;
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(errorText || "Gagal menyimpan history.");
@@ -398,6 +401,7 @@ export default function Home() {
   const loadHistoryDetail = async (id: string) => {
     try {
       const response = await fetch(`/api/history/${id}`, { cache: "no-store" });
+      if (sessionExpired(response)) return;
       if (!response.ok) throw new Error("History tidak ditemukan.");
       const result = (await response.json()) as { id: string; data: StoredLetterData };
       const loadedData = { ...createInitialData(), ...result.data };
@@ -420,6 +424,7 @@ export default function Home() {
 
     try {
       const response = await fetch(`/api/history/${id}`, { method: "DELETE" });
+      if (sessionExpired(response)) return;
       if (!response.ok) throw new Error("Gagal menghapus history.");
       if (selectedHistoryId === id) setSelectedHistoryId(null);
       await loadHistoryItems();
@@ -471,26 +476,40 @@ export default function Home() {
     setStatus("Dashboard refund dibuka.");
   };
 
-  const unlockEditor = (event: FormEvent<HTMLFormElement>) => {
+  const unlockEditor = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-
-    if (password === editorPassword) {
-      window.localStorage.setItem(accessStorageKey, "unlocked");
+    if (isAuthenticating) return;
+    setIsAuthenticating(true);
+    setPasswordError("");
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ password }),
+      });
+      if (!response.ok) {
+        const result = await response.json().catch(() => ({}));
+        setPasswordError(typeof result.error === "string" ? result.error : "Gagal masuk. Coba lagi.");
+        return;
+      }
       setIsUnlocked(true);
       setPassword("");
-      setPasswordError("");
-      return;
+    } catch {
+      setPasswordError("Tidak dapat terhubung. Coba lagi.");
+    } finally {
+      setIsAuthenticating(false);
     }
-
-    setPasswordError("Password salah.");
   };
 
-  const lockEditor = () => {
-    window.localStorage.removeItem(accessStorageKey);
-    window.sessionStorage.removeItem(accessStorageKey);
-    setIsUnlocked(false);
-    setPassword("");
-    setPasswordError("");
+  const lockEditor = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" });
+    } finally {
+      setIsUnlocked(false);
+      setPassword("");
+      setPasswordError("");
+    }
   };
 
   const handleProofImage = (event: ChangeEvent<HTMLInputElement>) => {
@@ -854,8 +873,8 @@ export default function Home() {
 
           {passwordError ? <p className="password-error">{passwordError}</p> : null}
 
-          <button className="primary-action" type="submit">
-            Masuk
+          <button className="primary-action" type="submit" disabled={isAuthenticating}>
+            {isAuthenticating ? "Memeriksa..." : "Masuk"}
           </button>
         </form>
       </main>

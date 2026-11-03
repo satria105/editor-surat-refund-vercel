@@ -44,4 +44,36 @@ test("serves the main page from the Next.js production build", async (t) => {
   const html = await response.text();
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
   assert.match(html, /<title>Editor Surat Refund<\/title>/i);
+
+  const base = `http://127.0.0.1:${port}`;
+  for (const [path, method] of [
+    ["/api/history", "GET"],
+    ["/api/history", "POST"],
+    ["/api/history/nonexistent", "GET"],
+    ["/api/history/nonexistent", "DELETE"],
+    ["/api/proof/proof_nonexistent.png", "GET"],
+    ["/api/auth/session", "GET"],
+  ]) {
+    await t.test(`${method} ${path} denies unauthenticated access`, async () => {
+      const result = await fetch(base + path, { method });
+      assert.equal(result.status, 401);
+      assert.match(result.headers.get("cache-control") ?? "", /no-store/);
+    });
+  }
+  await t.test("wrong password is rejected without requiring storage access", async () => {
+    const result = await fetch(base + "/api/auth/login", {
+      method: "POST",
+      headers: { "content-type": "application/json", origin: base },
+      body: JSON.stringify({ password: "__incorrect_smoke_test__" }),
+    });
+    assert.equal(result.status, 401);
+  });
+  await t.test("cross-origin login is rejected", async () => {
+    const result = await fetch(base + "/api/auth/login", {
+      method: "POST",
+      headers: { "content-type": "application/json", origin: "https://untrusted.example" },
+      body: JSON.stringify({ password: "__incorrect_smoke_test__" }),
+    });
+    assert.equal(result.status, 403);
+  });
 });

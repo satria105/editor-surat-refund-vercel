@@ -1,3 +1,4 @@
+import { requireAuth } from "@/lib/auth";
 import { getPrivateBlob } from "@/lib/blob-store";
 
 export const runtime = "nodejs";
@@ -11,10 +12,12 @@ function notFound() {
 }
 
 export async function GET(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ key: string }> },
 ) {
   try {
+    const denied = await requireAuth(request);
+    if (denied) return denied;
     const { key } = await context.params;
     if (!key.startsWith("proof_") || key.includes("/") || key.includes("\\")) return notFound();
     const blob = await getPrivateBlob(key);

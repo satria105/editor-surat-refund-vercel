@@ -1,3 +1,4 @@
+import { requireAuth } from "@/lib/auth";
 import {
   deleteHistoryRecord,
   deletePrivateBlob,
@@ -16,10 +17,12 @@ function json(data: unknown, init?: ResponseInit) {
 }
 
 export async function GET(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
   try {
+    const denied = await requireAuth(request);
+    if (denied) return denied;
     const { id } = await context.params;
     const record = await readHistoryRecord(id);
     if (!record) return json({ error: "History tidak ditemukan." }, { status: 404 });
@@ -30,10 +33,12 @@ export async function GET(
 }
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
   try {
+    const denied = await requireAuth(request);
+    if (denied) return denied;
     const { id } = await context.params;
     const record = await readHistoryRecord(id);
     const images = record?.data.proofImages;

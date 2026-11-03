@@ -1,3 +1,4 @@
+import { requireAuth } from "@/lib/auth";
 import { randomUUID } from "node:crypto";
 import {
   deletePrivateBlob,
@@ -20,6 +21,8 @@ function json(data: unknown, init?: ResponseInit) {
 
 export async function GET(request: Request) {
   try {
+    const denied = await requireAuth(request);
+    if (denied) return denied;
     const records = await listHistoryRecords();
     const query = new URL(request.url).searchParams.get("q")?.trim().toLocaleLowerCase("id") ?? "";
     const items = records
@@ -40,8 +43,7 @@ export async function GET(request: Request) {
         return [item.name, item.amount, item.letterDate, item.paymentDate]
           .some((value) => value.toLocaleLowerCase("id").includes(query));
       })
-      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
-      .slice(0, 100);
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 
     return json({ items });
   } catch {
@@ -51,6 +53,8 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const denied = await requireAuth(request);
+    if (denied) return denied;
     const body = (await request.json()) as {
       id?: unknown;
       data?: unknown;
