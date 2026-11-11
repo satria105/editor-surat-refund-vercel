@@ -1721,37 +1721,6 @@ h1 {
   text-align: left;
 }
 
-.portal-consent {
-  align-items: flex-start;
-  background: #f8fafc;
-  border: 1px solid #e5e7eb;
-  border-radius: 14px;
-  color: #374151;
-  display: flex;
-  font-size: 0.82rem;
-  gap: 11px;
-  line-height: 1.55;
-  padding: 13px;
-}
-
-.portal-consent input {
-  accent-color: #0f766e;
-  flex: 0 0 18px;
-  height: 18px;
-  margin: 2px 0 0;
-  width: 18px;
-}
-
-.portal-safety {
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
-  border-radius: 12px;
-  color: #1e3a8a;
-  font-size: 0.8rem;
-  line-height: 1.45;
-  padding: 11px 13px;
-}
-
 .portal-honeypot {
   height: 1px;
   left: -10000px;

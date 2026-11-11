@@ -52,25 +52,19 @@ test("serves the main page from the Next.js production build", async (t) => {
     const portalHtml = await portal.text();
     assert.match(portalHtml, /Form Pengajuan Refund/);
     assert.match(portalHtml, /Nomor WhatsApp/);
-    assert.match(portalHtml, /name=\"robots\"/);
+    assert.match(portalHtml, /name="robots"/);
+    assert.doesNotMatch(portalHtml, /Saya menyetujui data dan bukti yang saya berikan/i);
+    assert.doesNotMatch(portalHtml, /Kami tidak akan meminta PIN ATM, OTP, CVV/i);
   });
   await t.test("customer intake does not expose a list endpoint", async () => {
     const result = await fetch(base + "/api/customer-intake");
     assert.equal(result.status, 405);
   });
-  await t.test("customer intake rejects an unconsented request", async () => {
+  await t.test("customer intake requires a digital signature without a consent checkbox", async () => {
     const result = await fetch(base + "/api/customer-intake", {
       method: "POST",
       headers: { "content-type": "application/json", origin: base },
       body: JSON.stringify({ name: "Test" }),
-    });
-    assert.equal(result.status, 400);
-  });
-  await t.test("customer intake requires a digital signature", async () => {
-    const result = await fetch(base + "/api/customer-intake", {
-      method: "POST",
-      headers: { "content-type": "application/json", origin: base },
-      body: JSON.stringify({ consent: true }),
     });
     assert.equal(result.status, 400);
     assert.match((await result.json()).error, /tanda tangan digital/i);

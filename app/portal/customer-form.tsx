@@ -73,7 +73,6 @@ export default function CustomerForm() {
   const [signatureImage, setSignatureImage] = useState("");
   const signatureCanvas = useRef<HTMLCanvasElement | null>(null);
   const isDrawingSignature = useRef(false);
-  const [consent, setConsent] = useState(false);
   const [website, setWebsite] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -173,7 +172,7 @@ export default function CustomerForm() {
         method: "POST",
         headers: { "content-type": "application/json" },
         cache: "no-store",
-        body: JSON.stringify({ ...values, amount, proofImages: photos, signatureImage, consent, website }),
+        body: JSON.stringify({ ...values, amount, proofImages: photos, signatureImage, website }),
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(typeof result.error === "string" ? result.error : "Pengajuan belum dapat dikirim.");
@@ -311,12 +310,6 @@ export default function CustomerForm() {
               Wajib diisi. Tanda tangan disimpan secara privat bersama pengajuan Anda.
             </small>
           </div>
-
-          <label className="portal-consent">
-            <input checked={consent} onChange={(event) => setConsent(event.target.checked)} required type="checkbox" />
-            <span>Saya menyetujui data dan bukti yang saya berikan digunakan untuk memproses permohonan refund serta disimpan dalam penyimpanan privat yang aksesnya dibatasi. Saya memastikan data rekening benar.</span>
-          </label>
-          <div className="portal-safety">Kami tidak akan meminta PIN ATM, OTP, CVV, atau kata sandi Anda.</div>
 
           <label className="portal-honeypot" aria-hidden="true">
             Website

@@ -154,7 +154,6 @@ export async function POST(request: Request) {
   const input = body as Record<string, unknown>;
   const website = text(input.website, 200);
   if (website) return json({ ok: true, reference: "RF-TERKIRIM" }, 201);
-  if (input.consent !== true) return json({ error: "Persetujuan pemrosesan data wajib dicentang." }, 400);
   const signatureImage = input.signatureImage;
   if (!validSignatureImage(signatureImage)) return json({ error: "Bubuhkan tanda tangan digital sebelum mengirim." }, 400);
 
@@ -220,7 +219,6 @@ export async function POST(request: Request) {
         customerPhone,
         customerReference: reference,
         requestStatus: "Menunggu ditinjau",
-        customerConsentAt: now,
       },
     });
     return json({ ok: true, reference }, 201);

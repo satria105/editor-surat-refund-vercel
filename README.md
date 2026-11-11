@@ -4,7 +4,7 @@ Aplikasi Next.js untuk membuat surat refund, menerima pengajuan pelanggan melalu
 
 ## Portal pelanggan
 
-Form publik tersedia di `https://refund.aiorbitlab.me/portal`. Admin dapat membuka atau menyalin link dari toolbar; Master juga dapat membukanya dari sidebar. Pelanggan mengisi data pemohon, WhatsApp, rekening, tanggal/nominal, alasan, dan maksimal dua foto bukti. Form meminta persetujuan pemrosesan; pengajuan disimpan sebagai record baru di history privat, lalu dapat ditinjau dan diedit melalui editor admin. Nomor WhatsApp, sumber submission, dan nomor referensi terlihat pada daftar history internal. Endpoint intake hanya menerima POST; tidak menyediakan akses baca daftar atau detail.
+Form publik tersedia di `https://refund.aiorbitlab.me/portal`. Admin dapat membuka atau menyalin link dari toolbar; Master juga dapat membukanya dari sidebar. Pelanggan mengisi data pemohon, WhatsApp, rekening, tanggal/nominal, alasan, dan maksimal dua foto bukti. Pengajuan disimpan sebagai record baru di history privat, lalu dapat ditinjau dan diedit melalui editor admin. Nomor WhatsApp, sumber submission, dan nomor referensi terlihat pada daftar history internal. Endpoint intake hanya menerima POST; tidak menyediakan akses baca daftar atau detail.
 
 ## Menjalankan lokal
 
