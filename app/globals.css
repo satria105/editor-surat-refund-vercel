@@ -756,6 +756,34 @@ h1 {
   overflow-wrap: anywhere;
 }
 
+.history-item .history-signature-status {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  margin-top: 5px;
+}
+
+.history-signature-status.has-signature {
+  color: #99f6e4;
+}
+
+.history-signature-status.no-signature {
+  color: #fcd9a0;
+}
+
+.preview-toolbar .signature-record-status {
+  background: transparent;
+  border-radius: 0;
+  display: block;
+  max-width: 65ch;
+  margin-top: 8px;
+  padding: 0;
+  color: #cbd5e1;
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
 .history-item .history-delete {
   background: #fff1f2;
   border: 1px solid #fecdd3;

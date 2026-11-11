@@ -40,6 +40,7 @@ type HistoryItem = {
   submissionSource?: string;
   customerPhone?: string;
   customerReference?: string;
+  hasCustomerSignature?: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -243,6 +244,7 @@ export default function Home() {
   const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
   const [historyQuery, setHistoryQuery] = useState("");
   const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null);
+  const [failedSignatureUrl, setFailedSignatureUrl] = useState<string | null>(null);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isSavingHistory, setIsSavingHistory] = useState(false);
   const [deletingHistoryId, setDeletingHistoryId] = useState<string | null>(null);
@@ -450,7 +452,13 @@ export default function Home() {
       window.localStorage.setItem(draftStorageKey, JSON.stringify(loadedLetterData));
       setSelectedHistoryId(result.id);
       setProofImages(loadedProofImages);
-      setStatus("History dibuka. Revisi data lalu download ulang.");
+      setActiveView("editor");
+      setIsHistoryOpen(false);
+      setIsSidebarOpen(false);
+      setFailedSignatureUrl(null);
+      setStatus(loadedLetterData.customerSignatureImage
+        ? "History dibuka di Editor. Tanda tangan pelanggan ditampilkan di bagian bawah surat."
+        : "History dibuka di Editor. Record ini belum memiliki tanda tangan tersimpan.");
     } catch {
       setStatus("Gagal membuka history.");
     }
@@ -1236,6 +1244,9 @@ export default function Home() {
                             {item.submissionSource}{item.customerPhone ? ` · WhatsApp ${item.customerPhone}` : ""}{item.customerReference ? ` · ${item.customerReference}` : ""}
                           </small>
                         ) : null}
+                        <small className={`history-signature-status ${item.hasCustomerSignature ? "has-signature" : "no-signature"}`}>
+                          {item.hasCustomerSignature ? "Tanda tangan tersedia" : "Belum ada tanda tangan tersimpan"}
+                        </small>
                       </button>
                       <button
                         className="history-delete"
@@ -1298,6 +1309,15 @@ export default function Home() {
             <div>
               <p>Preview dokumen</p>
               <strong>{fileBaseName}</strong>
+              {selectedHistoryId ? (
+                <span className="signature-record-status" role="status">
+                  {data.customerSignatureImage
+                    ? failedSignatureUrl === data.customerSignatureImage
+                      ? "Gambar tanda tangan gagal dimuat. Muat ulang halaman atau buka kembali history."
+                      : "Tanda tangan pelanggan tersimpan di record ini."
+                    : "Tidak ada tanda tangan tersimpan di record ini. Tanda tangan pada PDF tidak otomatis masuk ke history."}
+                </span>
+              ) : null}
             </div>
             <span>A4</span>
           </div>
@@ -1476,6 +1496,9 @@ export default function Home() {
                   <img
                     alt="Tanda tangan digital pemohon"
                     className="customer-signature-image"
+                    key={data.customerSignatureImage}
+                    onError={() => setFailedSignatureUrl(data.customerSignatureImage ?? null)}
+                    onLoad={() => setFailedSignatureUrl(null)}
                     src={data.customerSignatureImage}
                   />
                 </div>
