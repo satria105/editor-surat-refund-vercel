@@ -1,5 +1,6 @@
 import { requireAuth } from "@/lib/auth";
 import { randomUUID } from "node:crypto";
+import { mergeHistoryData } from "@/lib/history-data";
 import {
   deletePrivateBlob,
   listHistoryRecords,
@@ -38,6 +39,7 @@ export async function GET(request: Request) {
           submissionSource: typeof data.submissionSource === "string" ? data.submissionSource : "",
           customerPhone: typeof data.customerPhone === "string" ? data.customerPhone : "",
           customerReference: typeof data.customerReference === "string" ? data.customerReference : "",
+          hasCustomerSignature: Boolean(signatureKeyFromUrl(data.customerSignatureImage)),
           createdAt: record.createdAt,
           updatedAt: record.updatedAt,
         };
@@ -69,13 +71,25 @@ export async function POST(request: Request) {
     }
 
     const submittedData = body.data as Record<string, unknown>;
+    const incomingSignature = submittedData.customerSignatureImage;
+    if (
+      incomingSignature !== undefined &&
+      incomingSignature !== null &&
+      incomingSignature !== "" &&
+      !signatureKeyFromUrl(incomingSignature)
+    ) {
+      return json({ error: "Alamat tanda tangan tidak valid." }, { status: 400 });
+    }
+
     const id = typeof body.id === "string" && body.id.length > 0 ? body.id : randomUUID();
     const previous = await readHistoryRecord(id);
     const proofImages = await storeProofImages(id, body.proofImages ?? []);
+    const mergedData = mergeHistoryData(previous?.data, submittedData);
+    mergedData.proofImages = proofImages;
     const now = new Date().toISOString();
     const record = {
       id,
-      data: { ...submittedData, proofImages },
+      data: mergedData,
       createdAt: previous?.createdAt ?? now,
       updatedAt: now,
     };
@@ -90,7 +104,7 @@ export async function POST(request: Request) {
       await Promise.all(obsoleteKeys.map((key) => deletePrivateBlob(key)));
     }
     const previousSignatureKey = signatureKeyFromUrl(previous?.data.customerSignatureImage);
-    const retainedSignatureKey = signatureKeyFromUrl(submittedData.customerSignatureImage);
+    const retainedSignatureKey = signatureKeyFromUrl(mergedData.customerSignatureImage);
     if (previousSignatureKey && previousSignatureKey !== retainedSignatureKey) {
       await deletePrivateBlob(previousSignatureKey).catch(() => undefined);
     }
